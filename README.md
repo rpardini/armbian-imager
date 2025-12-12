@@ -71,7 +71,7 @@ Inspired by the simplicity of [Raspberry Pi Imager](https://github.com/raspberry
 </tr>
 <tr>
 <td align="center"><a href="https://github.com/armbian/armbian-imager/releases">Intel & Apple Silicon<br><code>.dmg</code></a></td>
-<td align="center"><a href="https://github.com/armbian/armbian-imager/releases">x64<br><code>.msi</code> / <code>.exe</code></a></td>
+<td align="center"><a href="https://github.com/armbian/armbian-imager/releases">x64 & ARM64<br><code>.msi</code> / <code>.exe</code></a></td>
 <td align="center"><a href="https://github.com/armbian/armbian-imager/releases">x64 & ARM64<br><code>.deb</code></a></td>
 </tr>
 </table>
@@ -127,6 +127,7 @@ Built with modern technologies for optimal performance:
 | macOS | Intel x64 | ✅ | Full support |
 | macOS | Apple Silicon | ✅ | Native ARM64 + Touch ID |
 | Windows | x64 | ✅ | Admin elevation via UAC |
+| Windows | ARM64 | ✅ | Native ARM64 build |
 | Linux | x64 | ✅ | pkexec for privileges |
 | Linux | ARM64 | ✅ | Native ARM64 build |
 
