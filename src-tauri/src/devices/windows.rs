@@ -62,13 +62,6 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
             continue;
         }
 
-        // Skip system disk
-        if let Some(sys_num) = system_disk {
-            if number == sys_num {
-                continue;
-            }
-        }
-
         let size = disk["Size"].as_u64().unwrap_or(0);
         if size == 0 {
             continue;
@@ -82,6 +75,9 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
         let bus_type = disk["BusType"].as_str().unwrap_or("");
         let is_removable = bus_type == "USB" || bus_type == "SD";
 
+        // Mark as system disk instead of skipping (consistent with macOS behavior)
+        let is_system = system_disk.map(|sys_num| number == sys_num).unwrap_or(false);
+
         devices.push(BlockDevice {
             path: format!("\\\\.\\PhysicalDrive{}", number),
             name: format!("Disk {}", number),
@@ -89,7 +85,7 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
             size_formatted: format_size(size),
             model,
             is_removable,
-            is_system: false,
+            is_system,
         });
     }
 
