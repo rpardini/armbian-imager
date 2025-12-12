@@ -78,9 +78,16 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
         // Mark as system disk instead of skipping (consistent with macOS behavior)
         let is_system = system_disk.map(|sys_num| number == sys_num).unwrap_or(false);
 
+        // Get drive letters for user-friendly display
+        let drive_letters = get_drive_letters(number);
+        let name = match drive_letters {
+            Some(letters) => format!("Disk {} ({})", number, letters),
+            None => format!("Disk {}", number),
+        };
+
         devices.push(BlockDevice {
             path: format!("\\\\.\\PhysicalDrive{}", number),
-            name: format!("Disk {}", number),
+            name,
             size,
             size_formatted: format_size(size),
             model,
@@ -117,4 +124,47 @@ fn get_system_disk() -> Option<i64> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     stdout.trim().parse().ok()
+}
+
+/// Get drive letters for a disk number (e.g., "C:", "D:")
+fn get_drive_letters(disk_number: i64) -> Option<String> {
+    #[cfg(target_os = "windows")]
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            &format!(
+                "Get-Partition -DiskNumber {} | Where-Object {{ $_.DriveLetter }} | Select-Object -ExpandProperty DriveLetter",
+                disk_number
+            ),
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+
+    #[cfg(not(target_os = "windows"))]
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            &format!(
+                "Get-Partition -DiskNumber {} | Where-Object {{ $_.DriveLetter }} | Select-Object -ExpandProperty DriveLetter",
+                disk_number
+            ),
+        ])
+        .output()
+        .ok()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let letters: Vec<String> = stdout
+        .lines()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| format!("{}:", s.trim()))
+        .collect();
+
+    if letters.is_empty() {
+        None
+    } else {
+        Some(letters.join(", "))
+    }
 }
