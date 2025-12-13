@@ -21,4 +21,6 @@ pub struct BlockDevice {
     pub is_removable: bool,
     /// Whether this is a system disk (contains OS)
     pub is_system: bool,
+    /// Bus type (e.g., "USB", "SD", "SATA", "NVMe", "MMC")
+    pub bus_type: Option<String>,
 }

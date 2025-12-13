@@ -5,13 +5,12 @@
 use std::process::Command;
 
 use crate::utils::format_size;
-use crate::{log_error, log_info};
+use crate::log_error;
 
 use super::types::BlockDevice;
 
 /// Get list of block devices on macOS
 pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
-    log_info!("devices", "Scanning for block devices on macOS");
 
     let output = Command::new("diskutil")
         .args(["list", "-plist", "external", "physical"])
@@ -22,7 +21,6 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
         })?;
 
     if !output.status.success() {
-        log_info!("devices", "Retrying diskutil without external flag");
         // Try without external flag for older macOS
         let output = Command::new("diskutil")
             .args(["list", "-plist"])
@@ -91,7 +89,6 @@ fn parse_diskutil(_plist_data: &[u8]) -> Result<Vec<BlockDevice>, String> {
         }
     }
 
-    log_info!("devices", "Found {} block devices", devices.len());
     Ok(devices)
 }
 
@@ -127,6 +124,7 @@ fn get_disk_info(disk_path: &str) -> Result<BlockDevice, String> {
     let mut model = String::new();
     let mut is_removable = true;
     let mut is_internal = false;
+    let mut protocol = String::new();
 
     for line in info.lines() {
         let line = line.trim();
@@ -146,8 +144,39 @@ fn get_disk_info(disk_path: &str) -> Result<BlockDevice, String> {
             is_removable = line.contains("Removable");
         } else if line.starts_with("Device Location:") {
             is_internal = line.contains("Internal");
+        } else if line.starts_with("Protocol:") {
+            protocol = line
+                .split(':')
+                .nth(1)
+                .map(|s| s.trim().to_string())
+                .unwrap_or_default();
         }
     }
+
+    // Determine bus type from protocol and model
+    let bus_type = if !protocol.is_empty() {
+        // Protocol can be: USB, SATA, NVMe, Secure Digital, Apple Fabric, etc.
+        let p = protocol.to_uppercase();
+        if p.contains("SECURE DIGITAL") || p.contains("SD") {
+            Some("SD".to_string())
+        } else if p.contains("USB") {
+            Some("USB".to_string())
+        } else if p.contains("NVME") {
+            Some("NVMe".to_string())
+        } else if p.contains("SATA") {
+            Some("SATA".to_string())
+        } else {
+            Some(protocol)
+        }
+    } else {
+        // Fallback: detect from model name
+        let m = model.to_lowercase();
+        if m.contains("sdxc") || m.contains("sdhc") || m.contains("sd card") {
+            Some("SD".to_string())
+        } else {
+            None
+        }
+    };
 
     Ok(BlockDevice {
         path: disk_path.to_string(),
@@ -157,5 +186,6 @@ fn get_disk_info(disk_path: &str) -> Result<BlockDevice, String> {
         model,
         is_removable,
         is_system: is_internal && !is_removable,
+        bus_type,
     })
 }

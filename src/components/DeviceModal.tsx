@@ -1,10 +1,94 @@
-import { useState, useMemo } from 'react';
-import { HardDrive, RefreshCw, AlertTriangle, Usb, Shield } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { HardDrive, RefreshCw, AlertTriangle, Shield, MemoryStick, Usb } from 'lucide-react';
 import { Modal } from './Modal';
 import { ErrorDisplay } from './shared/ErrorDisplay';
 import type { BlockDevice } from '../types';
 import { getBlockDevices } from '../hooks/useTauri';
 import { useAsyncDataWhen } from '../hooks/useAsyncData';
+
+/** Polling interval for device detection (ms) */
+const DEVICE_POLL_INTERVAL = 2000;
+
+/** Device type for icon selection */
+type DeviceType = 'sd' | 'usb' | 'hdd' | 'system';
+
+/** Determine device type based on bus_type, model, and path */
+function getDeviceType(device: BlockDevice): DeviceType {
+  if (device.is_system) return 'system';
+
+  const busType = (device.bus_type || '').toUpperCase();
+  const model = (device.model || '').toLowerCase();
+  const path = (device.path || '').toLowerCase();
+
+  // Primary: use bus_type from backend (most reliable)
+  if (busType === 'SD' || busType === 'MMC') {
+    return 'sd';
+  }
+  if (busType === 'USB') {
+    return 'usb';
+  }
+
+  // Fallback: detect from path (Linux mmcblk)
+  if (path.includes('mmcblk')) {
+    return 'sd';
+  }
+
+  // Fallback: detect from model name
+  // Match: "sdxc", "sdhc", "sd card", "card reader" - but NOT "ssd"
+  const isSDCard =
+    model.includes('sdxc') ||
+    model.includes('sdhc') ||
+    model.includes('card reader') ||
+    model.includes('sd reader') ||
+    model.includes('sd card');
+
+  if (isSDCard) {
+    return 'sd';
+  }
+
+  // USB detection - removable drives that aren't SD cards
+  if (device.is_removable) {
+    return 'usb';
+  }
+
+  return 'hdd';
+}
+
+/** Get icon component for device type */
+function DeviceIcon({ type, size = 24 }: { type: DeviceType; size?: number }) {
+  switch (type) {
+    case 'system':
+      return <Shield size={size} />;
+    case 'sd':
+      return <MemoryStick size={size} />;
+    case 'usb':
+      return <Usb size={size} />;
+    default:
+      return <HardDrive size={size} />;
+  }
+}
+
+/** Get badge text for device type */
+function getDeviceBadge(type: DeviceType): string | null {
+  switch (type) {
+    case 'system':
+      return 'System';
+    case 'sd':
+      return 'SD Card';
+    case 'usb':
+      return 'USB';
+    default:
+      return null;
+  }
+}
+
+/** Check if device lists are different (by comparing paths) */
+function devicesChanged(prev: BlockDevice[] | null, next: BlockDevice[]): boolean {
+  if (!prev) return true;
+  if (prev.length !== next.length) return true;
+  const prevPaths = new Set(prev.map(d => d.path));
+  return next.some(d => !prevPaths.has(d.path));
+}
 
 /** Sort devices: removable first, then by size */
 function sortDevices(devices: BlockDevice[]): BlockDevice[] {
@@ -25,17 +109,45 @@ export function DeviceModal({ isOpen, onClose, onSelect }: DeviceModalProps) {
   const [selectedDevice, setSelectedDevice] = useState<BlockDevice | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Use hook for async data fetching - always refresh when modal opens
+  // Track previous devices for change detection
+  const prevDevicesRef = useRef<BlockDevice[] | null>(null);
+  const [devices, setDevices] = useState<BlockDevice[]>([]);
+
+  // Initial load when modal opens
   const { data: rawDevices, loading, error, reload } = useAsyncDataWhen<BlockDevice[]>(
     isOpen,
     () => getBlockDevices(),
     [isOpen]
   );
 
-  // Sort devices after fetching
-  const devices = useMemo(() => {
-    return rawDevices ? sortDevices(rawDevices) : [];
+  // Update devices only when they actually change
+  useEffect(() => {
+    if (rawDevices && devicesChanged(prevDevicesRef.current, rawDevices)) {
+      prevDevicesRef.current = rawDevices;
+      setDevices(sortDevices(rawDevices));
+    }
   }, [rawDevices]);
+
+  // Poll for device changes while modal is open
+  const pollDevices = useCallback(async () => {
+    try {
+      const newDevices = await getBlockDevices();
+      if (devicesChanged(prevDevicesRef.current, newDevices)) {
+        prevDevicesRef.current = newDevices;
+        setDevices(sortDevices(newDevices));
+      }
+    } catch {
+      // Silently ignore polling errors
+    }
+  }, []);
+
+  // Auto-refresh devices while modal is open (detect new USB/SD insertions)
+  useEffect(() => {
+    if (!isOpen || showConfirm) return;
+
+    const interval = setInterval(pollDevices, DEVICE_POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [isOpen, showConfirm, pollDevices]);
 
   function handleDeviceClick(device: BlockDevice) {
     if (device.is_system) return;
@@ -80,35 +192,43 @@ export function DeviceModal({ isOpen, onClose, onSelect }: DeviceModalProps) {
         ) : (
           <>
             <div className="modal-list">
-              {devices.map((device) => (
-                <button
-                  key={device.path}
-                  className={`list-item ${device.is_removable ? 'removable' : ''} ${device.is_system ? 'system' : ''}`}
-                  onClick={() => handleDeviceClick(device)}
-                  disabled={device.is_system}
-                  style={{ opacity: device.is_system ? 0.5 : 1 }}
-                >
-                  <div className="list-item-icon" style={{
-                    backgroundColor: device.is_system ? 'rgba(239, 68, 68, 0.1)' :
-                      device.is_removable ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)',
-                    color: device.is_system ? '#ef4444' :
-                      device.is_removable ? '#10b981' : 'var(--text-secondary)'
-                  }}>
-                    {device.is_system ? <Shield size={24} /> :
-                      device.is_removable ? <Usb size={24} /> : <HardDrive size={24} />}
-                  </div>
-                  <div className="list-item-content">
-                    <div className="list-item-title">
-                      {device.model || device.name}
-                      {device.is_system && <span className="system-badge" style={{ marginLeft: 8 }}>System</span>}
-                      {device.is_removable && !device.is_system && <span className="removable-badge" style={{ marginLeft: 8 }}>Removable</span>}
+              {devices.map((device) => {
+                const deviceType = getDeviceType(device);
+                const badge = getDeviceBadge(deviceType);
+                return (
+                  <button
+                    key={device.path}
+                    className={`list-item ${device.is_removable ? 'removable' : ''} ${device.is_system ? 'system' : ''}`}
+                    onClick={() => handleDeviceClick(device)}
+                    disabled={device.is_system}
+                    style={{ opacity: device.is_system ? 0.5 : 1 }}
+                  >
+                    <div className="list-item-icon" style={{
+                      backgroundColor: deviceType === 'system' ? 'rgba(239, 68, 68, 0.1)' :
+                        deviceType === 'sd' ? 'rgba(59, 130, 246, 0.1)' :
+                        deviceType === 'usb' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)',
+                      color: deviceType === 'system' ? '#ef4444' :
+                        deviceType === 'sd' ? '#3b82f6' :
+                        deviceType === 'usb' ? '#10b981' : 'var(--text-secondary)'
+                    }}>
+                      <DeviceIcon type={deviceType} size={24} />
                     </div>
-                    <div className="list-item-subtitle">
-                      {device.name} • {device.size_formatted}
+                    <div className="list-item-content">
+                      <div className="list-item-title">
+                        {device.model || device.name}
+                        {badge && (
+                          <span className={`${deviceType}-badge`} style={{ marginLeft: 8 }}>
+                            {badge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="list-item-subtitle">
+                        {device.name} • {device.size_formatted}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
             <div className="modal-refresh-bottom">
               <button className="btn btn-secondary" onClick={reload} disabled={loading}>

@@ -28,6 +28,7 @@ export interface BlockDevice {
   model: string;
   is_removable: boolean;
   is_system: boolean;
+  bus_type?: string;
 }
 
 export interface DownloadProgress {

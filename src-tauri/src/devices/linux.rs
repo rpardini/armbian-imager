@@ -5,14 +5,12 @@
 use std::process::Command;
 
 use crate::utils::format_size;
-use crate::{log_error, log_info};
+use crate::log_error;
 
 use super::types::BlockDevice;
 
 /// Get list of block devices on Linux
 pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
-    log_info!("devices", "Scanning for block devices on Linux");
-
     let output = Command::new("lsblk")
         .args(["-dpno", "NAME,SIZE,MODEL,RM", "-b"])
         .output()
@@ -77,6 +75,16 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
 
         let is_removable = parts.last().map(|s| *s == "1").unwrap_or(false);
 
+        // Determine bus type from device path
+        let bus_type = if path.contains("mmcblk") {
+            Some("MMC".to_string())
+        } else if path.contains("nvme") {
+            Some("NVMe".to_string())
+        } else {
+            // Try to get transport type from sysfs
+            get_device_transport(dev_name)
+        };
+
         devices.push(BlockDevice {
             path: path.to_string(),
             name: dev_name.to_string(),
@@ -85,11 +93,37 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
             model,
             is_removable,
             is_system,
+            bus_type,
         });
     }
 
-    log_info!("devices", "Found {} block devices", devices.len());
     Ok(devices)
+}
+
+/// Get device transport type from sysfs
+fn get_device_transport(dev_name: &str) -> Option<String> {
+    // Try reading from /sys/block/<dev>/device/transport or similar
+    let transport_path = format!("/sys/block/{}/device/transport", dev_name);
+    if let Ok(transport) = std::fs::read_to_string(&transport_path) {
+        let t = transport.trim().to_uppercase();
+        if !t.is_empty() {
+            return Some(t);
+        }
+    }
+
+    // For USB devices, check if the device path goes through usb
+    let device_link = format!("/sys/block/{}/device", dev_name);
+    if let Ok(resolved) = std::fs::read_link(&device_link) {
+        let path_str = resolved.to_string_lossy();
+        if path_str.contains("/usb") {
+            return Some("USB".to_string());
+        }
+        if path_str.contains("/ata") {
+            return Some("SATA".to_string());
+        }
+    }
+
+    None
 }
 
 /// Get list of system disk names to exclude

@@ -317,7 +317,8 @@
   color: white;
 }
 
-.removable-badge,
+.sd-badge,
+.usb-badge,
 .system-badge {
   font-size: 11px;
   padding: 4px 8px;
@@ -326,7 +327,12 @@
   text-transform: uppercase;
 }
 
-.removable-badge {
+.sd-badge {
+  background: #3b82f6;
+  color: white;
+}
+
+.usb-badge {
   background: #10b981;
   color: white;
 }

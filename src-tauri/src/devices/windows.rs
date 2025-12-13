@@ -8,7 +8,7 @@ use std::process::Command;
 use std::os::windows::process::CommandExt;
 
 use crate::utils::format_size;
-use crate::{log_error, log_info};
+use crate::log_error;
 
 use super::types::BlockDevice;
 
@@ -17,7 +17,6 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Get list of block devices on Windows
 pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
-    log_info!("devices", "Scanning for block devices on Windows");
 
     #[cfg(target_os = "windows")]
     let output = Command::new("powershell")
@@ -85,8 +84,8 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
             .unwrap_or("Unknown")
             .to_string();
 
-        let bus_type = disk["BusType"].as_str().unwrap_or("");
-        let is_removable = bus_type == "USB" || bus_type == "SD";
+        let bus_type_str = disk["BusType"].as_str().unwrap_or("");
+        let is_removable = bus_type_str == "USB" || bus_type_str == "SD";
 
         // Mark as system disk instead of skipping (consistent with macOS behavior)
         let is_system = system_disk.map(|sys_num| number == sys_num).unwrap_or(false);
@@ -106,10 +105,10 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
             model,
             is_removable,
             is_system,
+            bus_type: if bus_type_str.is_empty() { None } else { Some(bus_type_str.to_string()) },
         });
     }
 
-    log_info!("devices", "Found {} block devices", devices.len());
     Ok(devices)
 }
 

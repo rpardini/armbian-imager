@@ -2,6 +2,10 @@
 //!
 //! Handles fetching and filtering board/image data.
 
+use std::collections::HashSet;
+use std::sync::Mutex;
+
+use once_cell::sync::Lazy;
 use tauri::State;
 
 use crate::devices::{get_block_devices as devices_get_block_devices, BlockDevice};
@@ -12,6 +16,9 @@ use crate::images::{
 use crate::{log_error, log_info};
 
 use super::state::AppState;
+
+/// Track previously seen device paths to detect changes
+static PREV_DEVICE_PATHS: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 
 /// Get list of available boards
 #[tauri::command]
@@ -80,11 +87,33 @@ pub async fn get_images_for_board(
 /// Get available block devices
 #[tauri::command]
 pub async fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
-    log_info!("board_queries", "Scanning for block devices");
     let devices = devices_get_block_devices().map_err(|e| {
         log_error!("board_queries", "Failed to get block devices: {}", e);
         e
     })?;
-    log_info!("board_queries", "Found {} block devices", devices.len());
+
+    // Only log when device list changes
+    let current_paths: HashSet<String> = devices.iter().map(|d| d.path.clone()).collect();
+    let mut prev_paths = PREV_DEVICE_PATHS.lock().unwrap();
+
+    if *prev_paths != current_paths {
+        // Find added and removed devices
+        let added: Vec<_> = current_paths.difference(&prev_paths).collect();
+        let removed: Vec<_> = prev_paths.difference(&current_paths).collect();
+
+        if !added.is_empty() {
+            log_info!("board_queries", "Device(s) added: {:?}", added);
+        }
+        if !removed.is_empty() {
+            log_info!("board_queries", "Device(s) removed: {:?}", removed);
+        }
+        if added.is_empty() && removed.is_empty() {
+            // First scan
+            log_info!("board_queries", "Found {} block devices", devices.len());
+        }
+
+        *prev_paths = current_paths;
+    }
+
     Ok(devices)
 }
