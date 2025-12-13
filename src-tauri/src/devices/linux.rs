@@ -11,8 +11,9 @@ use super::types::BlockDevice;
 
 /// Get list of block devices on Linux
 pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
+    // Use JSON output for reliable parsing (handles spaces in model names)
     let output = Command::new("lsblk")
-        .args(["-dpno", "NAME,SIZE,MODEL,RM", "-b"])
+        .args(["-dpJo", "NAME,SIZE,MODEL,RM,TRAN", "-b"])
         .output()
         .map_err(|e| {
             log_error!("devices", "Failed to run lsblk: {}", e);
@@ -28,13 +29,15 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
     let mut devices = Vec::new();
     let system_disks = get_system_disks();
 
-    for line in stdout.lines() {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 2 {
-            continue;
-        }
+    // Parse JSON output
+    let json: serde_json::Value = serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse lsblk JSON: {}", e))?;
 
-        let path = parts[0];
+    let blockdevices = json["blockdevices"].as_array()
+        .ok_or("Invalid lsblk JSON structure")?;
+
+    for dev in blockdevices {
+        let path = dev["name"].as_str().unwrap_or("");
 
         // Skip non-standard devices
         if !path.starts_with("/dev/sd")
@@ -51,38 +54,52 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
             continue;
         }
 
-        let dev_name = path.split('/').last().unwrap_or("");
+        let dev_name = path.strip_prefix("/dev/").unwrap_or(path);
 
         // Mark as system disk instead of skipping (consistent with macOS behavior)
         let is_system = system_disks.iter().any(|sys| {
             sys.starts_with(dev_name) || dev_name.starts_with(sys)
         });
 
-        let size: u64 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+        // Parse size - can be string or number in JSON
+        let size: u64 = match &dev["size"] {
+            serde_json::Value::Number(n) => n.as_u64().unwrap_or(0),
+            serde_json::Value::String(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        };
         if size == 0 {
             continue;
         }
 
-        let model = if parts.len() > 2 {
-            if parts.len() > 3 {
-                parts[2..parts.len() - 1].join(" ")
-            } else {
-                parts[2].to_string()
-            }
-        } else {
-            String::new()
+        let model = dev["model"].as_str().unwrap_or("").trim().to_string();
+
+        // RM field: "1" or true means removable
+        let is_removable = match &dev["rm"] {
+            serde_json::Value::Bool(b) => *b,
+            serde_json::Value::String(s) => s == "1",
+            serde_json::Value::Number(n) => n.as_u64() == Some(1),
+            _ => false,
         };
 
-        let is_removable = parts.last().map(|s| *s == "1").unwrap_or(false);
-
-        // Determine bus type from device path
-        let bus_type = if path.contains("mmcblk") {
-            Some("MMC".to_string())
-        } else if path.contains("nvme") {
-            Some("NVMe".to_string())
-        } else {
-            // Try to get transport type from sysfs
-            get_device_transport(dev_name)
+        // Get transport type from TRAN field (already in JSON)
+        let tran = dev["tran"].as_str().unwrap_or("");
+        let bus_type = match tran.to_uppercase().as_str() {
+            "USB" => Some("USB".to_string()),
+            "MMC" => Some("SD".to_string()),
+            "SATA" => Some("SATA".to_string()),
+            "NVME" => Some("NVMe".to_string()),
+            "SAS" => Some("SAS".to_string()),
+            "" => {
+                // Fallback for devices without TRAN (mmcblk, nvme)
+                if path.contains("mmcblk") {
+                    Some("SD".to_string())
+                } else if path.contains("nvme") {
+                    Some("NVMe".to_string())
+                } else {
+                    None
+                }
+            }
+            other => Some(other.to_string()),
         };
 
         devices.push(BlockDevice {
@@ -98,32 +115,6 @@ pub fn get_block_devices() -> Result<Vec<BlockDevice>, String> {
     }
 
     Ok(devices)
-}
-
-/// Get device transport type from sysfs
-fn get_device_transport(dev_name: &str) -> Option<String> {
-    // Try reading from /sys/block/<dev>/device/transport or similar
-    let transport_path = format!("/sys/block/{}/device/transport", dev_name);
-    if let Ok(transport) = std::fs::read_to_string(&transport_path) {
-        let t = transport.trim().to_uppercase();
-        if !t.is_empty() {
-            return Some(t);
-        }
-    }
-
-    // For USB devices, check if the device path goes through usb
-    let device_link = format!("/sys/block/{}/device", dev_name);
-    if let Ok(resolved) = std::fs::read_link(&device_link) {
-        let path_str = resolved.to_string_lossy();
-        if path_str.contains("/usb") {
-            return Some("USB".to_string());
-        }
-        if path_str.contains("/ata") {
-            return Some("SATA".to_string());
-        }
-    }
-
-    None
 }
 
 /// Get list of system disk names to exclude

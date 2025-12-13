@@ -10,7 +10,7 @@ import { useAsyncDataWhen } from '../hooks/useAsyncData';
 const DEVICE_POLL_INTERVAL = 2000;
 
 /** Device type for icon selection */
-type DeviceType = 'sd' | 'usb' | 'hdd' | 'system';
+type DeviceType = 'sd' | 'usb' | 'sata' | 'sas' | 'nvme' | 'hdd' | 'system';
 
 /** Determine device type based on bus_type, model, and path */
 function getDeviceType(device: BlockDevice): DeviceType {
@@ -27,10 +27,22 @@ function getDeviceType(device: BlockDevice): DeviceType {
   if (busType === 'USB') {
     return 'usb';
   }
+  if (busType === 'SATA') {
+    return 'sata';
+  }
+  if (busType === 'SAS') {
+    return 'sas';
+  }
+  if (busType === 'NVME') {
+    return 'nvme';
+  }
 
-  // Fallback: detect from path (Linux mmcblk)
+  // Fallback: detect from path (Linux mmcblk, nvme)
   if (path.includes('mmcblk')) {
     return 'sd';
+  }
+  if (path.includes('nvme')) {
+    return 'nvme';
   }
 
   // Fallback: detect from model name
@@ -63,6 +75,9 @@ function DeviceIcon({ type, size = 24 }: { type: DeviceType; size?: number }) {
       return <MemoryStick size={size} />;
     case 'usb':
       return <Usb size={size} />;
+    case 'sata':
+    case 'sas':
+    case 'nvme':
     default:
       return <HardDrive size={size} />;
   }
@@ -77,6 +92,12 @@ function getDeviceBadge(type: DeviceType): string | null {
       return 'SD Card';
     case 'usb':
       return 'USB';
+    case 'sata':
+      return 'SATA';
+    case 'sas':
+      return 'SAS';
+    case 'nvme':
+      return 'NVMe';
     default:
       return null;
   }
@@ -206,10 +227,16 @@ export function DeviceModal({ isOpen, onClose, onSelect }: DeviceModalProps) {
                     <div className="list-item-icon" style={{
                       backgroundColor: deviceType === 'system' ? 'rgba(239, 68, 68, 0.1)' :
                         deviceType === 'sd' ? 'rgba(59, 130, 246, 0.1)' :
-                        deviceType === 'usb' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)',
+                        deviceType === 'usb' ? 'rgba(16, 185, 129, 0.1)' :
+                        deviceType === 'sata' ? 'rgba(249, 115, 22, 0.1)' :
+                        deviceType === 'sas' ? 'rgba(168, 85, 247, 0.1)' :
+                        deviceType === 'nvme' ? 'rgba(236, 72, 153, 0.1)' : 'var(--bg-secondary)',
                       color: deviceType === 'system' ? '#ef4444' :
                         deviceType === 'sd' ? '#3b82f6' :
-                        deviceType === 'usb' ? '#10b981' : 'var(--text-secondary)'
+                        deviceType === 'usb' ? '#10b981' :
+                        deviceType === 'sata' ? '#f97316' :
+                        deviceType === 'sas' ? '#a855f7' :
+                        deviceType === 'nvme' ? '#ec4899' : 'var(--text-secondary)'
                     }}>
                       <DeviceIcon type={deviceType} size={24} />
                     </div>

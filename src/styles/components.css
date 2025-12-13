@@ -319,6 +319,9 @@
 
 .sd-badge,
 .usb-badge,
+.sata-badge,
+.sas-badge,
+.nvme-badge,
 .system-badge {
   font-size: 11px;
   padding: 4px 8px;
@@ -334,6 +337,21 @@
 
 .usb-badge {
   background: #10b981;
+  color: white;
+}
+
+.sata-badge {
+  background: #f97316;
+  color: white;
+}
+
+.sas-badge {
+  background: #a855f7;
+  color: white;
+}
+
+.nvme-badge {
+  background: #ec4899;
   color: white;
 }
 
