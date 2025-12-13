@@ -62,7 +62,7 @@ export interface Manufacturer {
 /**
  * Filter type for image list
  */
-export type ImageFilterType = 'all' | 'stable' | 'nightly' | 'apps' | 'barebone';
+export type ImageFilterType = 'all' | 'recommended' | 'stable' | 'nightly' | 'apps' | 'barebone';
 
 /**
  * Modal type for app navigation

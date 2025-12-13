@@ -225,13 +225,17 @@
 }
 
 .badge-recommended {
+  background: var(--armbian-orange);
+  color: white;
+}
+
+/* Smaller version for board grid cards */
+.board-grid-info .badge-recommended {
   font-size: 8px;
   font-weight: 700;
   text-transform: uppercase;
   padding: 2px 6px;
   border-radius: 4px;
-  background: var(--armbian-orange);
-  color: white;
   letter-spacing: 0.3px;
 }
 
@@ -286,6 +290,11 @@
   padding: 4px 10px;
   border-radius: 12px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  height: 25px;
+  box-sizing: border-box;
 }
 
 .badge-desktop {
@@ -296,7 +305,6 @@
 .badge-cli {
   background: var(--bg-secondary);
   color: var(--text-secondary);
-  border: 1px solid var(--border-color);
 }
 
 .badge-kernel {

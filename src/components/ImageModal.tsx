@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Star, Download, Package, Monitor, Terminal, Zap } from 'lucide-react';
+import { Download, Package, Monitor, Terminal, Zap } from 'lucide-react';
 import { Modal } from './Modal';
 import type { BoardInfo, ImageInfo, ImageFilterType } from '../types';
 import { getImagesForBoard } from '../hooks/useTauri';
@@ -34,6 +34,8 @@ function formatSize(bytes: number): string {
  * Each predicate returns true if the image matches the filter criteria
  */
 const IMAGE_FILTER_PREDICATES: Record<Exclude<ImageFilterType, 'all'>, (img: ImageInfo) => boolean> = {
+  // Recommended: promoted images
+  recommended: (img) => img.promoted === true,
   // Stable: from archive repository and not trunk version
   stable: (img) => img.download_repository === 'archive' && !img.armbian_version.includes('trunk'),
   // Nightly: trunk versions
@@ -72,8 +74,9 @@ export function ImageModal({ isOpen, onClose, onSelect, board }: ImageModalProps
 
   // Calculate available filters based on all images
   const availableFilters = useMemo(() => {
-    if (!allImages) return { stable: false, nightly: false, apps: false, barebone: false };
+    if (!allImages) return { recommended: false, stable: false, nightly: false, apps: false, barebone: false };
     return {
+      recommended: hasImagesForFilter(allImages, 'recommended'),
       stable: hasImagesForFilter(allImages, 'stable'),
       nightly: hasImagesForFilter(allImages, 'nightly'),
       apps: hasImagesForFilter(allImages, 'apps'),
@@ -98,6 +101,14 @@ export function ImageModal({ isOpen, onClose, onSelect, board }: ImageModalProps
         >
           All
         </button>
+        {availableFilters.recommended && (
+          <button
+            className={`filter-btn ${filterType === 'recommended' ? 'active' : ''}`}
+            onClick={() => setFilterType('recommended')}
+          >
+            Recommended
+          </button>
+        )}
         {availableFilters.stable && (
           <button
             className={`filter-btn ${filterType === 'stable' ? 'active' : ''}`}
@@ -178,7 +189,6 @@ export function ImageModal({ isOpen, onClose, onSelect, board }: ImageModalProps
 
                 <div className="list-item-content" style={{ flex: 1 }}>
                   <div className="list-item-title">
-                    {image.promoted && <Star className="promoted-star" size={14} fill="currentColor" style={{ marginRight: 6 }} />}
                     Armbian {image.armbian_version} {image.distro_release}
                     {image.preinstalled_application && (
                       <span className="badge" style={{ marginLeft: 8, background: appInfo?.badgeColor || 'var(--accent)', color: 'white' }}>
@@ -187,20 +197,21 @@ export function ImageModal({ isOpen, onClose, onSelect, board }: ImageModalProps
                     )}
                   </div>
                   <div className="list-item-badges" style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                    {image.promoted && <span className="badge badge-recommended">Recommended</span>}
                     {desktopEnv && DESKTOP_BADGES[desktopEnv] ? (
                       <span className="badge badge-desktop" style={{ backgroundColor: DESKTOP_BADGES[desktopEnv].color }}>
-                        <Monitor size={10} style={{ marginRight: 4 }} />
+                        <Monitor size={12} style={{ marginRight: 4, flexShrink: 0 }} />
                         {DESKTOP_BADGES[desktopEnv].label}
                       </span>
                     ) : (
                       <span className="badge badge-cli">
-                        <Terminal size={10} style={{ marginRight: 4 }} />
+                        <Terminal size={12} style={{ marginRight: 4, flexShrink: 0 }} />
                         CLI
                       </span>
                     )}
                     {kernelType && KERNEL_BADGES[kernelType] && (
                       <span className="badge badge-kernel" style={{ backgroundColor: KERNEL_BADGES[kernelType].color }}>
-                        <Zap size={10} style={{ marginRight: 4 }} />
+                        <Zap size={12} style={{ marginRight: 4, flexShrink: 0 }} />
                         {KERNEL_BADGES[kernelType].label}
                       </span>
                     )}
