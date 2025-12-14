@@ -1,57 +1,81 @@
 /**
  * Manufacturer definitions for board categorization
+ * Vendor configuration is loaded from vendors.json
+ * Logos are at cache.armbian.com/images/vendors/300/{id}.png
  */
+
+import vendorsData from './vendors.json';
 
 export interface ManufacturerConfig {
   name: string;
   color: string;
-  keywords: string[];
 }
 
-export const MANUFACTURERS: Record<string, ManufacturerConfig> = {
-  'radxa': { name: 'Radxa', color: '#8b5cf6', keywords: ['radxa', 'rock-', 'rock5', 'rock3', 'rock4', 'rockpi'] },
-  'orangepi': { name: 'Orange Pi', color: '#f97316', keywords: ['orangepi', 'orange-pi'] },
-  'bananapi': { name: 'Banana Pi', color: '#f59e0b', keywords: ['bananapi', 'bpi-'] },
-  'khadas': { name: 'Khadas', color: '#10b981', keywords: ['khadas', 'vim1', 'vim2', 'vim3', 'vim4', 'edge'] },
-  'hardkernel': { name: 'Hardkernel (ODROID)', color: '#3b82f6', keywords: ['odroid'] },
-  'pine64': { name: 'Pine64', color: '#06b6d4', keywords: ['pine64', 'pinebook', 'pinephone', 'rock64', 'quartz64', 'sopine', 'pinetab', 'star64', 'ox64'] },
-  'friendlyarm': { name: 'FriendlyElec', color: '#ec4899', keywords: ['nanopi', 'nanopc', 'friendlyelec', 'zeropi'] },
-  'olimex': { name: 'Olimex', color: '#84cc16', keywords: ['olimex', 'lime', 'olinuxino'] },
-  'armsom': { name: 'ArmSoM', color: '#0ea5e9', keywords: ['armsom'] },
-  'libre': { name: 'Libre Computer', color: '#22c55e', keywords: ['lepotato', 'lafrite', 'libre', 'tritium', 'renegade', 'solitude', 'sweet-potato', 'libretech', 'potato', 'frite'] },
-  'asus': { name: 'ASUS Tinker', color: '#00529b', keywords: ['asus', 'tinker'] },
-  'nvidia': { name: 'NVIDIA Jetson', color: '#76b900', keywords: ['jetson', 'nvidia', 'tegra'] },
-  'beagle': { name: 'BeagleBoard', color: '#2e8b57', keywords: ['beagle', 'bone', 'pocketbeagle'] },
-  'solidrun': { name: 'SolidRun', color: '#dc2626', keywords: ['solidrun', 'hummingboard', 'cubox', 'clearfog', 'honeycomb', 'lx2k'] },
-  'firefly': { name: 'Firefly', color: '#ff6600', keywords: ['firefly', 'roc-rk'] },
-  'starfive': { name: 'StarFive', color: '#7c3aed', keywords: ['starfive', 'visionfive', 'jh71'] },
-  'sipeed': { name: 'Sipeed', color: '#ea580c', keywords: ['sipeed', 'lichee', 'tang', 'maix'] },
-  'milkv': { name: 'Milk-V', color: '#be185d', keywords: ['milkv', 'milk-v', 'mars', 'duo', 'pioneer'] },
-  'amlogic': { name: 'Amlogic TV Boxes', color: '#a855f7', keywords: ['aml-', 'wetek', 'ugoos', 'beelink', 'tanix', 'tx6', 'phicomm', 'n1', 'x96', 't95', 'h96', 'mecool'] },
-  'rockchip': { name: 'Rockchip Generic', color: '#6366f1', keywords: ['rk3', 'station-m', 'station-p', 'miqi'] },
-  'allwinner': { name: 'Allwinner Generic', color: '#14b8a6', keywords: ['cubieboard', 'cubietruck', 'lamobo', 'pcduino', 'banana-pro', 'sunxi', 'a10', 'a20', 'h3', 'h5', 'h6', 'a64', 'h616'] },
-  'marvell': { name: 'Marvell', color: '#2563eb', keywords: ['espressobin', 'marvell', 'macchiatobin', 'globalscale'] },
-  'helios': { name: 'Kobol/Helios', color: '#0891b2', keywords: ['helios', 'kobol'] },
-  'mediatek': { name: 'MediaTek', color: '#ffc107', keywords: ['mediatek', 'mt7', 'mt8'] },
-  'bigtreetech': { name: 'BigTreeTech', color: '#16a34a', keywords: ['bigtreetech', 'btt', 'cb1', 'cb2'] },
-  'hinlink': { name: 'Hinlink', color: '#0891b2', keywords: ['hinlink', 'h28k', 'h66k', 'h68k', 'h88k'] },
-  'embedfire': { name: 'EmbedFire', color: '#dc2626', keywords: ['embedfire', 'lubancat', 'wildfire'] },
-  'mixtile': { name: 'Mixtile', color: '#0284c7', keywords: ['mixtile', 'blade'] },
-  'cool-pi': { name: 'Cool Pi', color: '#0ea5e9', keywords: ['coolpi', 'cool-pi'] },
-  'uefi': { name: 'UEFI/Generic', color: '#64748b', keywords: ['uefi', 'generic', 'uefi-arm64', 'uefi-x86'] },
-  'other': { name: 'Other Boards', color: '#64748b', keywords: [] },
-};
+interface VendorConfig {
+  prefixes: string[];
+  name?: string;
+}
+
+const VENDORS: Record<string, VendorConfig> = vendorsData.vendors;
+const DEFAULT_COLOR = '#64748b';
+
+// Build prefix lookup map for fast matching
+const PREFIX_TO_VENDOR: Array<[string, string]> = [];
+for (const [vendorId, config] of Object.entries(VENDORS)) {
+  for (const prefix of config.prefixes) {
+    PREFIX_TO_VENDOR.push([prefix, vendorId]);
+  }
+}
+// Sort by prefix length descending so longer prefixes match first
+PREFIX_TO_VENDOR.sort((a, b) => b[0].length - a[0].length);
 
 /**
- * Get manufacturer ID from board slug and name
+ * Get display name for a vendor
  */
-export function getManufacturer(slug: string, name: string): string {
-  const searchStr = (slug + ' ' + name).toLowerCase();
-  for (const [key, config] of Object.entries(MANUFACTURERS)) {
-    if (key === 'other') continue;
-    if (config.keywords.some(kw => searchStr.includes(kw))) {
-      return key;
+function getDisplayName(vendorId: string): string {
+  if (vendorId === 'other') return 'Other Boards';
+  const vendor = VENDORS[vendorId];
+  if (vendor?.name) return vendor.name;
+  return vendorId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/**
+ * Get manufacturer config for a vendor
+ */
+export function getManufacturerConfig(vendorId: string): ManufacturerConfig {
+  return { name: getDisplayName(vendorId), color: DEFAULT_COLOR };
+}
+
+// Dynamic proxy for backward compatibility
+export const MANUFACTURERS: Record<string, ManufacturerConfig> = new Proxy(
+  {} as Record<string, ManufacturerConfig>,
+  { get: (_, key: string) => getManufacturerConfig(key) }
+);
+
+/**
+ * Check if a vendor has a logo
+ */
+export function vendorHasLogo(vendorId: string): boolean {
+  return vendorId in VENDORS;
+}
+
+/**
+ * Get vendor ID from board display name
+ */
+export function getManufacturer(_slug: string, displayName?: string): string {
+  if (displayName) {
+    for (const [prefix, vendorId] of PREFIX_TO_VENDOR) {
+      if (displayName.startsWith(prefix)) {
+        return vendorId;
+      }
     }
   }
   return 'other';
+}
+
+/**
+ * Get vendor logo URL
+ */
+export function getVendorLogoUrl(vendorId: string): string {
+  return `https://cache.armbian.com/images/vendors/300/${vendorId}.png`;
 }

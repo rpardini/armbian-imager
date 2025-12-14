@@ -6,6 +6,8 @@
 export {
   MANUFACTURERS,
   getManufacturer,
+  getVendorLogoUrl,
+  vendorHasLogo,
   type ManufacturerConfig,
 } from './manufacturers';
 

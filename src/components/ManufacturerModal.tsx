@@ -9,16 +9,34 @@ import { useAsyncDataWhen } from '../hooks/useAsyncData';
 import {
   MANUFACTURERS,
   getManufacturer,
+  getVendorLogoUrl,
+  vendorHasLogo,
   type ManufacturerConfig,
 } from '../config';
 
 // Re-export Manufacturer type for backward compatibility
 export type { Manufacturer } from '../types';
 
-function ManufacturerIcon({ config }: { config: ManufacturerConfig }) {
+function ManufacturerIcon({ id, config }: { id: string; config: ManufacturerConfig }) {
+  const [imageError, setImageError] = useState(false);
+  const hasLogo = vendorHasLogo(id);
+  const logoUrl = getVendorLogoUrl(id);
+
+  if (!hasLogo || imageError || id === 'other') {
+    return (
+      <div className="list-item-icon" style={{ backgroundColor: config.color }}>
+        {config.name.substring(0, 2).toUpperCase()}
+      </div>
+    );
+  }
+
   return (
-    <div className="list-item-icon" style={{ backgroundColor: config.color }}>
-      {config.name.substring(0, 2).toUpperCase()}
+    <div className="list-item-icon manufacturer-logo">
+      <img
+        src={logoUrl}
+        alt={config.name}
+        onError={() => setImageError(true)}
+      />
     </div>
   );
 }
@@ -107,7 +125,7 @@ export function ManufacturerModal({ isOpen, onClose, onSelect }: ManufacturerMod
                 className="list-item"
                 onClick={() => onSelect(mfr)}
               >
-                <ManufacturerIcon config={config} />
+                <ManufacturerIcon id={mfr.id} config={config} />
                 <div className="list-item-content">
                   <div className="list-item-title">{mfr.name}</div>
                   <div className="list-item-subtitle">{mfr.boardCount} {t('home.boards')}</div>
