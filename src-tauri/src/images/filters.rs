@@ -29,9 +29,11 @@ fn capitalize_vendor(vendor: &str) -> String {
 }
 
 /// Check if file extension is a valid image file
+/// Valid extensions: img.xz, oowow.img.xz, kebab.img.xz, etc.
+/// Invalid extensions: .asc, .torrent, .sha
 fn is_valid_image_extension(ext: &str) -> bool {
     let ext_lower = ext.to_lowercase();
-    ext_lower.starts_with("img")
+    ext_lower.contains("img")
         && !ext_lower.contains("asc")
         && !ext_lower.contains("torrent")
         && !ext_lower.contains("sha")
