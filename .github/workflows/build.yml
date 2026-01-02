@@ -101,7 +101,7 @@ jobs:
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
           - { name: 'deb', container: 'debian:oldstable', bundles: 'deb', deps: "apt" }
-          - { name: 'appimage', container: 'ubuntu:noble', bundles: 'appimage', deps: "apt" }
+          - { name: 'appimage', container: 'debian:oldstable', bundles: 'appimage', deps: "apt" }
           - { name: 'rpm', container: 'rockylinux/rockylinux:8', bundles: 'rpm', deps: "rpm" }
     runs-on: ${{ matrix.arch.runner }}
     container: { image: "${{ matrix.type.container }}" }
