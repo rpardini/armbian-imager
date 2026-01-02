@@ -90,7 +90,7 @@ jobs:
           replacesArtifacts: false
 
   build-linux:
-    name: build-linux ${{ matrix.type.name }} (${{ matrix.arch.name }}/${{ matrix.type.osdesc }})
+    name: build-linux ${{ matrix.type.name }} (${{ matrix.arch.name }}/${{ matrix.type.distro_id }})
     needs: [ create-release ]
     if: ${{ github.event_name == 'push' || inputs.build_linux }} # can't use matrix here; if is evaluated before matrix expansion
     strategy:
@@ -101,10 +101,10 @@ jobs:
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
           # deb and rpm run in the oldest still-supported matching container: oldstable (bookworm) for deb, Fedora 40 for rpm
-          - { name: 'deb', osdesc: "debian-oldstable", container: { image: 'debian:oldstable' }, bundles: 'deb', deps: "apt" }
-          - { name: 'rpm', osdesc: "fedora40", container: { image: 'fedora:40' }, bundles: 'rpm', deps: "rpm" }
+          - { name: 'deb', distro_id: "bookworm", container: { image: 'debian:bookworm' }, bundles: 'deb', deps: "apt" }
+          - { name: 'rpm', distro_id: "fedora40", container: { image: 'fedora:40' }, bundles: 'rpm', deps: "rpm" }
           # appimage: doesn't use a container (instead, runs directly on the runner); requires sudo to install deps
-          - { name: 'appimage', osdesc: "runner", bundles: 'appimage', deps: "apt", deps_gain_root: "sudo" }
+          - { name: 'appimage', distro_id: "gharunner", bundles: 'appimage', deps: "apt", deps_gain_root: "sudo" }
     runs-on: ${{ matrix.arch.runner }}
     container: ${{ matrix.type.container }}
     permissions:
@@ -180,7 +180,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: npm-${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.type.osdesc }}-${{ hashFiles('**/package-lock.json') }}
+          key: npm-${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.type.distro_id }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable # this is _very_ outdated (2022)
@@ -189,13 +189,16 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: "${{ matrix.arch.name }}-${{ matrix.type.osdesc }}" # ensure cache separation per host OS version
+          # ensure cache separation per host distro; this also ends up caching tauri-cli, so add that to key too.
+          key: "rust-cache-${{ matrix.arch.name }}-${{ matrix.type.distro_id }}-${{env.TAURI_CLI_VERSION}}"
+          # @TODO: Cargo.lock is in gitignore, so it's not included here.
 
-      - name: Cache cargo bin (tauri-cli)
+      - name: Cache cargo bin (tauri-cli) # @TODO: Swatinem/rust-cache already caches this. maybe just drop this.
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin
-          key: cargo-bin-${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.type.osdesc }}-stable-${{env.TAURI_CLI_VERSION}}-${{ hashFiles('**/Cargo.lock') }}
+          key: "cargo-bin-${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.type.distro_id }}-stable-${{env.TAURI_CLI_VERSION}}-${{ hashFiles('**/Cargo.lock') }}"
+          # @TODO: Cargo.lock is in gitignore, so it's not included here.
 
       - name: Install npm dependencies
         run: npm ci
