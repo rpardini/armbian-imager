@@ -102,7 +102,7 @@ jobs:
         type:
           - { name: 'deb', container: 'debian:oldstable', bundles: 'deb', deps: "apt" }
           - { name: 'appimage', container: 'ubuntu:noble', bundles: 'appimage', deps: "apt" }
-          - { name: 'rpm', container: 'rockylinux/rockylinux:9', bundles: 'rpm', deps: "rpm" }
+          - { name: 'rpm', container: 'rockylinux/rockylinux:8', bundles: 'rpm', deps: "rpm" }
     runs-on: ${{ matrix.arch.runner }}
     container: { image: "${{ matrix.type.container }}" }
     permissions:
