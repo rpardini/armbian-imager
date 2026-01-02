@@ -65,7 +65,7 @@ jobs:
             LAST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)
 
             if [[ -z "$LAST_TAG" ]]; then
-              TAG="v1.0.0"
+              TAG="v0.0.${{ github.run_number }}"
             else
               # Expect vMAJOR.MINOR.PATCH
               IFS='.' read -r MAJOR MINOR PATCH <<<"${LAST_TAG#v}"
