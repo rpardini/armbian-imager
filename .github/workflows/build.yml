@@ -6,12 +6,8 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      build_linux_x64:
-        description: 'Build Linux x64'
-        type: boolean
-        default: true
-      build_linux_arm64:
-        description: 'Build Linux ARM64'
+      build_linux:
+        description: 'Build Linux (x64 + ARM64)'
         type: boolean
         default: true
       build_macos:
@@ -96,7 +92,7 @@ jobs:
   build-linux:
     name: build-linux ${{ matrix.type.name }} (${{ matrix.arch.name }}/${{ matrix.type.container }})
     needs: [ create-release ]
-    if: ${{ github.event_name == 'push' || ((matrix.arch.name == 'amd64' && inputs.build_linux_x64) || (matrix.arch.name == 'arm64' && inputs.build_linux_arm64)) }}
+    if: ${{ github.event_name == 'push' || inputs.build_linux }}
     strategy:
       fail-fast: false # let other jobs try to complete if one fails
       matrix:
