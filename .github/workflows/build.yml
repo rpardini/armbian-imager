@@ -173,8 +173,14 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-        env: { RUNNER_OS: "${{ matrix.arch.name }}-${{ matrix.type.osdesc }}" } # cache separation per distro, not only "Linux"
+          package-manager-cache: false # setup-node can't add key to cache, so we do it ourselves in below step
+
+      # Cache npm, just like setup-node would do it with "cache: npm"
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.type.osdesc }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable # this is _very_ outdated (2022)
