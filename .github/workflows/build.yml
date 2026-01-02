@@ -168,6 +168,9 @@ jobs:
             gtk3-devel \
             squashfs-tools \
             xdg-utils
+          echo "--> PATH: ${PATH}"
+          # symlink bash to /bin/bash for tauri build scripts
+          ln -sv /usr/bin/bash /bin/bash || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
