@@ -100,11 +100,29 @@ jobs:
           - { name: 'amd64', runner: 'ubuntu-24.04' }
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
-          # deb and rpm run in the oldest still-supported matching container: oldstable (bookworm) for deb, Fedora 40 for rpm
-          - { name: 'deb', distro_id: "bookworm", container: { image: 'debian:bookworm' }, bundles: 'deb', deps: "apt" }
-          - { name: 'rpm', distro_id: "fedora40", container: { image: 'fedora:40' }, bundles: 'rpm', deps: "rpm" }
+          # deb: build in the oldest still-supported matching container: oldstable (bookworm)
+          - name: 'deb'
+            distro_id: "bookworm"
+            container: { image: 'debian:bookworm' }
+            bundles: 'deb'
+            deps: "apt"
+            artifacts: "src-tauri/target/release/bundle/deb/*.deb"
+          # rpm: build in the oldest still-supported matching container: Fedora 40 for rpm
+          - name: 'rpm'
+            distro_id: "fedora40"
+            container: { image: 'fedora:40' }
+            bundles: 'rpm'
+            deps: "rpm"
+            artifacts: "src-tauri/target/release/bundle/rpm/*.rpm"
           # appimage: doesn't use a container (instead, runs directly on the runner); requires sudo to install deps
-          - { name: 'appimage', distro_id: "gharunner", bundles: 'appimage', deps: "apt", deps_gain_root: "sudo" }
+          - name: 'appimage'
+            distro_id: "gharunner"
+            bundles: 'appimage'
+            deps: "apt"
+            deps_gain_root: "sudo"
+            artifacts: |
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/appimage/*.AppImage.sig
     runs-on: ${{ matrix.arch.runner }}
     container: ${{ matrix.type.container }}
     permissions:
@@ -228,10 +246,7 @@ jobs:
           omitNameDuringUpdate: true
           replacesArtifacts: false
           artifacts: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            ${{ matrix.type.artifacts }}
 
   build-macos:
     name: build-macos (${{ matrix.target }})
