@@ -101,7 +101,7 @@ jobs:
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
           - { name: 'deb', osdesc: "debian-oldstable", container: { image: 'debian:oldstable' }, bundles: 'deb', deps: "apt" }
-          - { name: 'rpm', osdesc: "el10", container: { image: 'rockylinux/rockylinux:10' }, bundles: 'rpm', deps: "rpm" }
+          - { name: 'rpm', osdesc: "el9", container: { image: 'rockylinux/rockylinux:9' }, bundles: 'rpm', deps: "rpm" }
           # appimage: doesn't use a container (instead, runs directly on the runner); requires sudo to install deps
           - { name: 'appimage', osdesc: "runner", bundles: 'deb,appimage', deps: "apt", deps_gain_root: "sudo" }
     runs-on: ${{ matrix.arch.runner }}
@@ -162,7 +162,7 @@ jobs:
             bash \
             curl \
             glib2-devel \
-            webkit2gtk4.1-devel \
+            webkit2gtk3-devel \
             libappindicator-gtk3-devel \
             librsvg2-devel \
             patchelf \
@@ -177,8 +177,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           #cache: 'npm' # @TODO differentiate the cache across matrix.type.osdesc + matrix.arch.name; limitation of setup-node action
 
+      #- name: Setup Rust
+      #  uses: dtolnay/rust-toolchain@stable # this is _very_ outdated (2022)
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1 # more up-to-date, hopefully works in containers
 
       #- name: Cache Rust dependencies
       #  uses: Swatinem/rust-cache@v2
