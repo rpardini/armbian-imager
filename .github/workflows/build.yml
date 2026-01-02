@@ -101,7 +101,7 @@ jobs:
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
           - { name: 'deb', container: 'debian:oldstable', bundles: 'deb', deps: "apt" }
-          - { name: 'appimage', container: 'debian:stable', bundles: 'appimage', deps: "apt" }
+          - { name: 'appimage', container: 'debian:stable', bundles: 'deb,appimage', deps: "apt" } # need to build deb first otherwise appimage bombs
           - { name: 'rpm', container: 'rockylinux/rockylinux:8', bundles: 'rpm', deps: "rpm" }
     runs-on: ${{ matrix.arch.runner }}
     container: { image: "${{ matrix.type.container }}" }
@@ -204,6 +204,11 @@ jobs:
 
       - name: Build Tauri app
         run: cargo tauri build --bundles ${{ matrix.type.name }}
+
+      - name: Drop .deb from AppImage builds # I'm forced to build both deb and appimage in one go; but we don't want to upload the deb's for the AppImage build
+        if: ${{ matrix.type.name == 'appimage' }}
+        run: |
+          rm -rf src-tauri/target/release/bundle/deb
 
       - name: Upload artifacts to GitHub Release
         uses: ncipollo/release-action@v1
