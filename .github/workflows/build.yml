@@ -92,7 +92,7 @@ jobs:
   build-linux:
     name: build-linux ${{ matrix.type.name }} (${{ matrix.arch.name }}/${{ matrix.type.container }})
     needs: [ create-release ]
-    if: ${{ github.event_name == 'push' || inputs.build_linux }}
+    if: ${{ github.event_name == 'push' || inputs.build_linux }} # can't use matrix here; if is evaluated before matrix expansion
     strategy:
       fail-fast: false # let other jobs try to complete if one fails
       matrix:
