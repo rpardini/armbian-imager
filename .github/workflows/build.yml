@@ -204,7 +204,7 @@ jobs:
           fi
 
       - name: Build Tauri app
-        run: cargo tauri build --bundles ${{ matrix.type.name }}
+        run: cargo tauri build --bundles "${{ matrix.type.bundles }}"
 
       - name: Drop .deb from AppImage builds # I'm forced to build both deb and appimage in one go; but we don't want to upload the deb's for the AppImage build
         if: ${{ matrix.type.name == 'appimage' }}
