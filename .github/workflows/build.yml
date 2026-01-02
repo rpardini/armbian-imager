@@ -141,6 +141,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y \
+            build-essential \
             curl \
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
