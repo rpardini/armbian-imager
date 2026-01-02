@@ -100,9 +100,10 @@ jobs:
           - { name: 'amd64', runner: 'ubuntu-24.04' }
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
-          - { name: 'appimage', osdesc: "runner", bundles: 'deb,appimage', deps: "apt" } # doesn't use a container
           - { name: 'deb', osdesc: "debian-oldstable", container: { image: 'debian:oldstable' }, bundles: 'deb', deps: "apt" }
           - { name: 'rpm', osdesc: "el10", container: { image: 'rockylinux/rockylinux:10' }, bundles: 'rpm', deps: "rpm" }
+          # appimage: doesn't use a container (instead, runs directly on the runner); requires sudo to install deps
+          - { name: 'appimage', osdesc: "runner", bundles: 'deb,appimage', deps: "apt", deps_gain_root: "sudo" }
     runs-on: ${{ matrix.arch.runner }}
     container: ${{ matrix.type.container }}
     permissions:
@@ -135,8 +136,8 @@ jobs:
       - name: Install dependencies (deb)
         if: ${{ matrix.type.deps == 'apt' }}
         run: |
-          apt-get update
-          apt-get install -y \
+          ${{ matrix.type.deps_gain_root || '' }} apt-get update
+          ${{ matrix.type.deps_gain_root || '' }} apt-get install -y \
             build-essential \
             curl \
             libwebkit2gtk-4.1-dev \
@@ -152,15 +153,16 @@ jobs:
         if: ${{ matrix.type.deps == 'rpm' }}
         run: |
           dnf install -y dnf-plugins-core 
-          dnf config-manager --set-enabled crb
-          dnf install -y epel-release 
+          dnf config-manager --set-enabled crb 
           dnf update -y
+          dnf install -y epel-release
+          /usr/bin/crb enable
           dnf -y groupinstall "Development Tools"
           dnf install -y --allowerasing \
             bash \
             curl \
             glib2-devel \
-            webkit2gtk3-devel \
+            webkit2gtk4.1-devel \
             libappindicator-gtk3-devel \
             librsvg2-devel \
             patchelf \
@@ -168,9 +170,6 @@ jobs:
             gtk3-devel \
             squashfs-tools \
             xdg-utils
-          echo "--> PATH: ${PATH}"
-          # symlink bash to /bin/bash for tauri build scripts
-          ln -sv /usr/bin/bash /bin/bash || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
