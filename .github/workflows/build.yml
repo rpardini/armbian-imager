@@ -151,16 +151,11 @@ jobs:
       - name: Install dependencies (rpm)
         if: ${{ matrix.type.deps == 'rpm' }}
         run: |
-          # Enable PowerTools repo, which contains libappindicator-gtk3-devel
           dnf install -y dnf-plugins-core
-          dnf config-manager --set-enabled powertools
-          
-          # Enable EPEL on RockyLinux, for patchelf
-          dnf install -y epel-release
-
+          dnf config-manager --set-enabled powertools # Enable PowerTools repo, which contains libappindicator-gtk3-devel
+          dnf install -y epel-release # Enable EPEL on RockyLinux, for patchelf
           dnf update -y
-          
-          # Install via dnf...
+          dnf -y groupinstall 'Development Tools'
           dnf install -y \
             curl \
             webkit2gtk3-devel \
