@@ -177,6 +177,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          # @TODO differentiate the cache across matrix.type.name + matrix.arch.name
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -185,6 +186,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          key: "${{ matrix.type.name }}" # ensure cache separation per bundle type, as OS libs differ
 
       - name: Cache cargo bin (tauri-cli)
         uses: actions/cache@v4
