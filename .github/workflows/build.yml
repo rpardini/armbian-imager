@@ -175,7 +175,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false # setup-node can't add key to cache, so we do it ourselves in below step
 
-      # Cache npm, just like setup-node would do it with "cache: npm"
+      # Cache npm, just like setup-node would do it with "cache: npm", but with our own key that includes arch and distro
       - name: Cache npm dependencies
         uses: actions/cache@v4
         with:
