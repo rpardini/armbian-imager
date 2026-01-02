@@ -101,7 +101,7 @@ jobs:
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
           - { name: 'deb', container: 'debian:oldstable', bundles: 'deb', deps: "apt" }
-          - { name: 'appimage', container: 'debian:stable', bundles: 'deb,appimage', deps: "apt" } # need to build deb first otherwise appimage bombs
+          - { name: 'appimage', container: 'ubuntu:noble', bundles: 'deb,appimage', deps: "apt" } # need to build deb first otherwise appimage bombs?
           - { name: 'rpm', container: 'rockylinux/rockylinux:9', bundles: 'rpm', deps: "rpm" }
     runs-on: ${{ matrix.arch.runner }}
     container: { image: "${{ matrix.type.container }}" }
