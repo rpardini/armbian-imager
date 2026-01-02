@@ -100,10 +100,11 @@ jobs:
           - { name: 'amd64', runner: 'ubuntu-24.04' }
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
+          # deb and rpm run in the oldest still-supported matching container: oldstable (bookworm) for deb, Fedora 40 for rpm
           - { name: 'deb', osdesc: "debian-oldstable", container: { image: 'debian:oldstable' }, bundles: 'deb', deps: "apt" }
-          - { name: 'rpm', osdesc: "el9", container: { image: 'rockylinux/rockylinux:9' }, bundles: 'rpm', deps: "rpm" }
+          - { name: 'rpm', osdesc: "fedora40", container: { image: 'fedora:40' }, bundles: 'rpm', deps: "rpm" }
           # appimage: doesn't use a container (instead, runs directly on the runner); requires sudo to install deps
-          - { name: 'appimage', osdesc: "runner", bundles: 'deb,appimage', deps: "apt", deps_gain_root: "sudo" }
+          - { name: 'appimage', osdesc: "runner", bundles: 'appimage', deps: "apt", deps_gain_root: "sudo" }
     runs-on: ${{ matrix.arch.runner }}
     container: ${{ matrix.type.container }}
     permissions:
@@ -152,24 +153,21 @@ jobs:
       - name: Install dependencies (rpm)
         if: ${{ matrix.type.deps == 'rpm' }}
         run: |
-          dnf install -y dnf-plugins-core 
-          dnf config-manager --set-enabled crb 
           dnf update -y
-          dnf install -y epel-release
-          /usr/bin/crb enable
-          dnf -y groupinstall "Development Tools"
-          dnf install -y --allowerasing \
-            bash \
+          dnf install -y \
+            webkit2gtk4.1-devel \
+            openssl-devel \
             curl \
-            glib2-devel \
-            webkit2gtk3-devel \
+            wget \
+            file \
             libappindicator-gtk3-devel \
             librsvg2-devel \
+            libxdo-devel \
             patchelf \
-            openssl-devel \
             gtk3-devel \
             squashfs-tools \
             xdg-utils
+          dnf -y group install "c-development"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -177,10 +175,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           #cache: 'npm' # @TODO differentiate the cache across matrix.type.osdesc + matrix.arch.name; limitation of setup-node action
 
-      #- name: Setup Rust
-      #  uses: dtolnay/rust-toolchain@stable # this is _very_ outdated (2022)
       - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1 # more up-to-date, hopefully works in containers
+        uses: dtolnay/rust-toolchain@stable # this is _very_ outdated (2022)
 
       #- name: Cache Rust dependencies
       #  uses: Swatinem/rust-cache@v2
@@ -209,11 +205,6 @@ jobs:
 
       - name: Build Tauri app
         run: cargo tauri build --bundles "${{ matrix.type.bundles }}"
-
-      - name: Drop .deb from AppImage builds # I'm forced to build both deb and appimage in one go; but we don't want to upload the deb's for the AppImage build
-        if: ${{ matrix.type.name == 'appimage' }}
-        run: |
-          rm -rf src-tauri/target/release/bundle/deb
 
       - name: Upload artifacts to GitHub Release
         uses: ncipollo/release-action@v1
