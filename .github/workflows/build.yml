@@ -94,11 +94,17 @@ jobs:
           replacesArtifacts: false
 
   build-linux-x64:
-    name: build-linux (x86_64-unknown-linux-gnu)
-    needs: [create-release]
+    name: build-linux ${{ matrix.type.name }} (x86_64-unknown-linux-gnu)
+    needs: [ create-release ]
     if: ${{ github.event_name == 'push' || inputs.build_linux_x64 }}
+    strategy:
+      fail-fast: false # let other jobs try to complete if one fails
+      matrix:
+        type:
+          - { name: 'deb', container: 'debian:oldstable', bundles: 'deb' }
+          - { name: 'appimage', container: 'ubuntu:noble', bundles: 'appimage' }
     runs-on: ubuntu-24.04
-    container: { image: "debian:oldstable" }
+    container: { image: "${{ matrix.type.container }}" }
     permissions:
       contents: write
     steps:
@@ -173,7 +179,7 @@ jobs:
           fi
 
       - name: Build Tauri app
-        run: cargo tauri build --bundles deb,appimage
+        run: cargo tauri build --bundles ${{ matrix.type.name }}
 
       - name: Upload artifacts to GitHub Release
         uses: ncipollo/release-action@v1
@@ -193,7 +199,7 @@ jobs:
 
   build-linux-arm64:
     name: build-linux (aarch64-unknown-linux-gnu)
-    needs: [create-release]
+    needs: [ create-release ]
     if: ${{ github.event_name == 'push' || inputs.build_linux_arm64 }}
     runs-on: ubuntu-24.04-arm
     container: { image: "debian:oldstable" }
@@ -291,7 +297,7 @@ jobs:
 
   build-macos:
     name: build-macos (${{ matrix.target }})
-    needs: [create-release]
+    needs: [ create-release ]
     if: ${{ github.event_name == 'push' || inputs.build_macos }}
     strategy:
       fail-fast: false
@@ -478,7 +484,7 @@ jobs:
 
   build-windows-x64:
     name: build-windows (x86_64-pc-windows-msvc)
-    needs: [create-release]
+    needs: [ create-release ]
     if: ${{ github.event_name == 'push' || inputs.build_windows_x64 }}
     runs-on: windows-latest
     permissions:
@@ -565,7 +571,7 @@ jobs:
 
   build-windows-arm64:
     name: build-windows (aarch64-pc-windows-msvc)
-    needs: [create-release]
+    needs: [ create-release ]
     if: ${{ github.event_name == 'push' || inputs.build_windows_arm64 }}
     runs-on: windows-latest
     permissions:
