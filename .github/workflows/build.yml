@@ -102,7 +102,7 @@ jobs:
         type:
           - { name: 'deb', container: 'debian:oldstable', bundles: 'deb', deps: "apt" }
           - { name: 'appimage', container: 'debian:stable', bundles: 'deb,appimage', deps: "apt" } # need to build deb first otherwise appimage bombs
-          - { name: 'rpm', container: 'rockylinux/rockylinux:8', bundles: 'rpm', deps: "rpm" }
+          - { name: 'rpm', container: 'rockylinux/rockylinux:9', bundles: 'rpm', deps: "rpm" }
     runs-on: ${{ matrix.arch.runner }}
     container: { image: "${{ matrix.type.container }}" }
     permissions:
@@ -151,12 +151,11 @@ jobs:
       - name: Install dependencies (rpm)
         if: ${{ matrix.type.deps == 'rpm' }}
         run: |
-          dnf install -y dnf-plugins-core
-          dnf config-manager --set-enabled powertools # Enable PowerTools repo, which contains libappindicator-gtk3-devel
-          dnf install -y epel-release # Enable EPEL on RockyLinux, for patchelf
+          dnf install -y dnf-plugins-core epel-release
+          dnf config-manager --set-enabled crb
           dnf update -y
-          dnf -y groupinstall 'Development Tools'
-          dnf install -y \
+          dnf -y groupinstall "Development Tools"
+          dnf install -y --allowerasing \
             curl \
             glib2-devel \
             webkit2gtk3-devel \
