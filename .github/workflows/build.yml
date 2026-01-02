@@ -90,7 +90,7 @@ jobs:
           replacesArtifacts: false
 
   build-linux:
-    name: build-linux ${{ matrix.type.name }} (${{ matrix.arch.name }}/${{ matrix.type.container }})
+    name: build-linux ${{ matrix.type.name }} (${{ matrix.arch.name }}/${{ matrix.type.osdesc }})
     needs: [ create-release ]
     if: ${{ github.event_name == 'push' || inputs.build_linux }} # can't use matrix here; if is evaluated before matrix expansion
     strategy:
@@ -100,11 +100,11 @@ jobs:
           - { name: 'amd64', runner: 'ubuntu-24.04' }
           - { name: 'arm64', runner: "ubuntu-24.04-arm" }
         type:
-          - { name: 'deb', container: 'debian:oldstable', bundles: 'deb', deps: "apt" }
-          - { name: 'appimage', container: 'ubuntu:noble', bundles: 'deb,appimage', deps: "apt" } # need to build deb first otherwise appimage bombs?
-          - { name: 'rpm', container: 'rockylinux/rockylinux:9', bundles: 'rpm', deps: "rpm" }
+          - { name: 'appimage', osdesc: "runner", bundles: 'deb,appimage', deps: "apt" } # doesn't use a container
+          - { name: 'deb', osdesc: "debian-oldstable", container: { image: 'debian:oldstable' }, bundles: 'deb', deps: "apt" }
+          - { name: 'rpm', osdesc: "el10", container: { image: 'rockylinux/rockylinux:10' }, bundles: 'rpm', deps: "rpm" }
     runs-on: ${{ matrix.arch.runner }}
-    container: { image: "${{ matrix.type.container }}" }
+    container: ${{ matrix.type.container }}
     permissions:
       contents: write
     steps:
@@ -176,7 +176,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          #cache: 'npm' # @TODO differentiate the cache across matrix.type.container + matrix.arch.name; limitation of setup-node action
+          #cache: 'npm' # @TODO differentiate the cache across matrix.type.osdesc + matrix.arch.name; limitation of setup-node action
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -185,13 +185,13 @@ jobs:
       #  uses: Swatinem/rust-cache@v2
       #  with:
       #    workspaces: src-tauri
-      #    key: "${{ matrix.type.container }}" # ensure cache separation per host OS version
+      #    key: "${{ matrix.type.osdesc }}" # ensure cache separation per host OS version
 
       #- name: Cache cargo bin (tauri-cli)
       #  uses: actions/cache@v4
       #  with:
       #    path: ~/.cargo/bin
-      #    key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ matrix.type.container }}-stable-${{ hashFiles('**/Cargo.lock') }}
+      #    key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ matrix.type.osdesc }}-stable-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install npm dependencies
         run: npm ci
