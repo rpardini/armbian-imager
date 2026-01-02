@@ -158,6 +158,7 @@ jobs:
           dnf -y groupinstall 'Development Tools'
           dnf install -y \
             curl \
+            glib2-devel \
             webkit2gtk3-devel \
             libappindicator-gtk3-devel \
             librsvg2-devel \
