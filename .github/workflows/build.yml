@@ -151,11 +151,13 @@ jobs:
       - name: Install dependencies (rpm)
         if: ${{ matrix.type.deps == 'rpm' }}
         run: |
-          dnf install -y dnf-plugins-core epel-release
+          dnf install -y dnf-plugins-core 
           dnf config-manager --set-enabled crb
+          dnf install -y epel-release 
           dnf update -y
           dnf -y groupinstall "Development Tools"
           dnf install -y --allowerasing \
+            bash \
             curl \
             glib2-devel \
             webkit2gtk3-devel \
